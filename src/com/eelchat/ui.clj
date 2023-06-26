@@ -3,7 +3,8 @@
             [clojure.java.io :as io]
             [com.eelchat.settings :as settings]
             [com.biffweb :as biff]
-            [ring.middleware.anti-forgery :as csrf]))
+            [ring.middleware.anti-forgery :as csrf]
+            [clojure.string :as str]))
 
 (defn css-path []
   (if-some [f (io/file (io/resource "public/css/main.css"))]
@@ -36,6 +37,40 @@
                                                  :async "async" :defer "defer"}])]
                                     head))))
    body))
+
+(defn app-page [{:keys [uri user] :as ctx} & body]
+  (base
+   ctx
+   [:.flex.bg-orange-50
+    [:.h-screen.w-80.p-3.pr-0.flex.flex-col.flex-grow
+     [:select
+      {:class '[text-sm
+                cursor-pointer
+                focus:border-teal-600
+                focus:ring-teal-600]
+       :onchange "window.location = this.value"}
+      [:option {:value "/app"}
+       "Select a community"]
+      (for [{:keys [mem/comm]} (:user/mems user)
+            :let [url (str "/community/" (:xt/id comm))]]
+        [:option.cursor-pointer
+         {:value url
+          :selected (when (= url uri)
+                      "selected")}
+         (:comm/title comm)])]
+     [:.grow]
+     (biff/form
+      {:action "/community"}
+      [:button.btn.w-full {:type "submit"} "New community"])
+     [:.h-3]
+     [:.text-sm (:user/email user) " | "
+      (biff/form
+       {:action "/auth/signout"
+        :class "inline"}
+       [:button.text-teal-600.hover:text-teal-800 {:type "submit"}
+        "Sign out"])]]
+    [:.h-screen.w-full.p-3.flex.flex-col
+     body]]))
 
 (defn page [ctx & body]
   (base

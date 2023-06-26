@@ -5,21 +5,12 @@
             [com.eelchat.ui :as ui]
             [xtdb.api :as xt]))
 
-(defn app [{:keys [session biff/db] :as ctx}]
-  (let [{:user/keys [email]} (xt/entity db (:uid session))]
-    (ui/page
-     {}
-     [:div "Signed in as " email ". "
-      (biff/form
-       {:action "/auth/signout"
-        :class  "inline"}
-       [:button.text-blue-500.hover:text-blue-800 {:type "submit"}
-        "Sign out"])
-      "."]
-     [:.h-6]
-     (biff/form
-      {:action "/community"}
-      [:button.btn {:type "submit"} "New Community"]))))
+(defn app
+  "Make the app page"
+  [ctx]
+  (ui/app-page
+    ctx
+    [:p "Select a community, or create a new one."]))
 
 (defn new-community
   "Create new community"
@@ -40,10 +31,14 @@
 (defn community
   "Community page"
   [{:keys [biff/db path-params] :as ctx}]
-  (if-some [comm (xt/entity db (parse-uuid (:id path-params)))]
-    (ui/page
-     {}
-     [:p "Welcome to " (:comm/title comm)])
+  (if (some? (xt/entity db (parse-uuid (:id path-params))) )
+    (ui/app-page
+     ctx
+     [:.border.border-neutral-600.p-3.bg-white.grow
+      "Messages window"]
+     [:.h-3]
+     [:.border.border-neutral-600.p-3.h-28.bg-white
+      "Compose window"])
     {:satus 303
      :headers {"Location" "/app"}}))
 
