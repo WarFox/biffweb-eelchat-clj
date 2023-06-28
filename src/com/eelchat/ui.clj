@@ -38,8 +38,19 @@
                                     head))))
    body))
 
+(defn channels
+  [{:keys [biff/db community roles]}]
+  (when (some? roles)
+    (sort-by
+     :chan/title
+     (biff/q db
+             '{:find  (pull channel [*])
+               :in    [comm]
+               :where [[channel :chan/comm comm]]}
+             (:xt/id community)))))
+
 (defn app-page
-  [{:keys [uri user community roles] :as ctx} & body]
+  [{:keys [uri user community roles channel] :as ctx} & body]
   (base
    ctx
    [:.flex.bg-orange-50
@@ -59,12 +70,22 @@
           :selected (when (= url uri)
                       "selected")}
          (:comm/title comm)])]
+
+     [:.h-4]
+     (for [chan (channels ctx)
+           :let [active (= (:xt/id chan) (:xt/id channel))]]
+       [:.mt-3 (if active
+                 [:span.font-bold (:chan/title chan)]
+                 [:a.link {:href (str "/community/" (:xt/id community)
+                                      "/channel/" (:xt/id chan))}
+                  (:chan/title chan)])])
+
      [:.grow]
      (when (contains? roles :admin)
        [:<>
         (biff/form
-          {:action (str "/community/" (:xt/id community) "/channel")}
-          [:button.btn.w-full {:type "submit"} "New Channel"])
+         {:action (str "/community/" (:xt/id community) "/channel")}
+         [:button.btn.w-full {:type "submit"} "New Channel"])
         [:.h-3]])
      (biff/form
       {:action "/community"}
