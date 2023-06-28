@@ -40,6 +40,22 @@
   {:status 303
    :headers {"Location" (str "/community/" (:xt/id community))}})
 
+(defn new-channel
+  "Create new channel"
+  [{:keys [community roles] :as ctx}]
+  (if (and community (contains? roles :admin))
+    (let [chan-id (random-uuid)]
+      (biff/submit-tx
+       ctx
+       [{:db/doc-type :channel
+         :xt/id       chan-id
+         :chan/title  (str "Channel #" (rand-int 1000))
+         :chan/comm   (:xt/id community)}])
+      {:status 303
+       :headers {"Location" (str "/community/" (:xt/id community) "/channel/" chan-id)}})
+    {:status 403
+     :body "Forbidden."}))
+
 (defn community
   "Community page"
   [{:keys [biff/db user community] :as ctx}]
@@ -65,6 +81,11 @@
          [:button.btn {:type "submit"} "Join this community"])
         [:div {:class "grow-[1.75]"}]]))))
 
+(defn channel-page
+  "Show channel"
+  [ctx]
+  (community ctx))
+
 (defn wrap-community
   "Add community and user roles to ctx"
   [handler]
@@ -81,10 +102,22 @@
       {:status 303
        :headers {"Location" "/app"}})))
 
+(defn wrap-channel
+  [handler]
+  (fn [{:keys [biff/db user community path-params] :as ctx}]
+    (let [channel (xt/entity db (parse-uuid (:chan-id path-params)))]
+      (if (= (:chan/comm channel) (:xt/id community))
+        (handler (assoc ctx :channel channel))
+        {:status  303
+         :headers {"Location" (str "/community/" (:xt/id community))}}))))
+
 (def plugin
   {:routes ["" {:middleware [mid/wrap-signed-in]}
             ["/app" {:get app}]
             ["/community" {:post new-community}]
             ["/community/:id" {:middleware [wrap-community]}
              [""      {:get community}]
-             ["/join" {:post join-community}]]]})
+             ["/join" {:post join-community}]
+             ["/channel" {:post new-channel}]
+             ["/channel/:chan-id" {:middleware [wrap-channel]}
+              ["" {:get channel-page}]]]]})
