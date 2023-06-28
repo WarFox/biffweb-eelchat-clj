@@ -38,7 +38,8 @@
                                     head))))
    body))
 
-(defn app-page [{:keys [uri user] :as ctx} & body]
+(defn app-page
+  [{:keys [uri user community roles] :as ctx} & body]
   (base
    ctx
    [:.flex.bg-orange-50
@@ -59,6 +60,12 @@
                       "selected")}
          (:comm/title comm)])]
      [:.grow]
+     (when (contains? roles :admin)
+       [:<>
+        (biff/form
+          {:action (str "/community/" (:xt/id community) "/channel")}
+          [:button.btn.w-full {:type "submit"} "New Channel"])
+        [:.h-3]])
      (biff/form
       {:action "/community"}
       [:button.btn.w-full {:type "submit"} "New community"])

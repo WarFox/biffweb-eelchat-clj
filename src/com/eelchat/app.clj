@@ -66,11 +66,18 @@
         [:div {:class "grow-[1.75]"}]]))))
 
 (defn wrap-community
-  "If community exists handle it, otherwise go to /app"
+  "Add community and user roles to ctx"
   [handler]
-  (fn [{:keys [biff/db path-params] :as ctx}]
+  (fn [{:keys [biff/db user path-params] :as ctx}]
     (if-some [community (xt/entity db (parse-uuid (:id path-params)))]
-      (handler (assoc ctx :community community))
+      (let [roles (->> (:user/mems user)
+                       (filter (fn [mem]
+                                 (= (:xt/id community) (get-in mem [:mem/comm :xt/id]))))
+                       first
+                       :mem/roles)]
+        (handler (assoc ctx
+                        :community community
+                        :roles roles)))
       {:status 303
        :headers {"Location" "/app"}})))
 
