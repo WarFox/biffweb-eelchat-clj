@@ -1,6 +1,6 @@
 ;; src/com/eelchat/app.clj
 (ns com.eelchat.app
-  (:require [com.biffweb :as biff :refer [q]]
+  (:require [com.biffweb :as biff]
             [com.eelchat.middleware :as mid]
             [com.eelchat.ui :as ui]
             [xtdb.api :as xt]))
@@ -118,20 +118,23 @@
 
 (defn channel-page
   [{:keys [biff/db community channel] :as ctx}]
-  (let [msgs (q db
-                '{:find  (pull msg [*])
-                  :in    [channel]
-                  :where [[msg :msg/channel channel]]}
-                (:xt/id channel))]
+  (let [msgs (biff/q db
+                     '{:find  (pull msg [*])
+                       :in    [channel]
+                       :where [[msg :msg/channel channel]]}
+                     (:xt/id channel))
+        href (str "/community/" (:xt/id community)
+                  "/channel/" (:xt/id channel))]
     (ui/app-page
      ctx
      [:.border.border-neutral-600.p-3.bg-white.grow.flex-1.overflow-y-auto#messages
-      {:_ "on load or newMessage set my scrollTop to my scrollHeight"}
+      {:hx-ext     "ws"
+       :ws-connect (str href "/connect")
+       :_          "on load or newMessage set my scrollTop to my scrollHeight"}
       (map message-view (sort-by :msg/created-at msgs))]
      [:.h-3]
      (biff/form
-      {:hx-post   (str "/community/" (:xt/id community)
-                       "/channel/" (:xt/id channel))
+      {:hx-post   href
        :hx-target "#messages"
        :hx-swap   "beforeend"
        :_         (str "on htmx:afterRequest"
@@ -141,6 +144,26 @@
       [:textarea.w-full#text {:name "text"}]
       [:.w-2]
       [:button.btn {:type "submit"} "Send"]))))
+
+(defn connect
+  "websocket connection"
+  [{:keys            [com.eelchat/chat-clients]
+    {chan-id :xt/id} :channel
+    {mem-id :xt/id}  :mem
+    :as              ctx}]
+  {:status  101
+   :headers {"upgrade"    "websocket"
+             "connection" "upgrade"}
+   :ws      {:on-connect (fn [ws]
+                           (prn :connect (swap! chat-clients assoc-in [chan-id mem-id] ws)))
+             :on-close   (fn [ws status-code reason]
+                           (prn :disconnect
+                                (swap! chat-clients
+                                       (fn [chat-clients]
+                                         (let [chat-clients (update chat-clients chan-id dissoc mem-id)]
+                                           (if (empty? (get chat-clients chan-id))
+                                             (dissoc chat-clients chan-id)
+                                             chat-clients))))))}})
 
 (defn wrap-community
   "Add community and user roles to ctx"
@@ -178,4 +201,5 @@
              ["/channel/:chan-id" {:middleware [wrap-channel]}
               ["" {:get    channel-page
                    :post   new-message
-                   :delete delete-channel}]]]]})
+                   :delete delete-channel}]
+              ["/connect" {:get connect}]]]]})
