@@ -88,10 +88,27 @@
          [:button.btn {:type "submit"} "Join this community"])
         [:div {:class "grow-[1.75]"}]]))))
 
+(defn message-view
+  [{:msg/keys [mem text created-at]}]
+  (let [username (str "User " (subs (str mem) 0 4))]
+    [:div
+     [:.text-sm
+      [:span.font-bold username]
+      [:span.w-2.inline-block]
+      [:span.text-gray-600 (biff/format-date created-at "d MMM h:mm aa")]]
+     [:p.whitespace-pre-wrap.mb-6 text]]))
+
 (defn channel-page
-  "Show channel"
-  [ctx]
-  (community ctx))
+  [{:keys [biff/db community channel] :as ctx}]
+  (let [msgs (q db
+                '{:find  (pull msg [*])
+                  :in    [channel]
+                  :where [[msg :msg/channel channel]]}
+                (:xt/id channel))]
+    (ui/app-page
+      ctx
+      [:.border.border-neutral-600.p-3.bg-white.grow.flex-1.overflow-y-auto#messages
+       (map message-view (sort-by :msg/created-at msgs))])))
 
 (defn wrap-community
   "Add community and user roles to ctx"
