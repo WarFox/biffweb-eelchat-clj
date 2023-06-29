@@ -1,10 +1,11 @@
 (ns com.eelchat.ui
   (:require [cheshire.core :as cheshire]
             [clojure.java.io :as io]
+            [clojure.string :as str]
             [com.eelchat.settings :as settings]
+            [com.eelchat.ui.icons :as icons]
             [com.biffweb :as biff]
-            [ring.middleware.anti-forgery :as csrf]
-            [clojure.string :as str]))
+            [ring.middleware.anti-forgery :as csrf]))
 
 (defn css-path []
   (if-some [f (io/file (io/resource "public/css/main.css"))]
@@ -54,6 +55,8 @@
   (base
    ctx
    [:.flex.bg-orange-50
+    {:hx-headers (cheshire/generate-string
+                  {:x-csrf-token csrf/*anti-forgery-token*})}
     [:.h-screen.w-80.p-3.pr-0.flex.flex-col.flex-grow
      [:select
       {:class '[text-sm
@@ -67,18 +70,28 @@
             :let [url (str "/community/" (:xt/id comm))]]
         [:option.cursor-pointer
          {:value url
-          :selected (when (= url uri)
-                      "selected")}
+          :selected (str/starts-with? uri url)}
          (:comm/title comm)])]
 
      [:.h-4]
      (for [chan (channels ctx)
-           :let [active (= (:xt/id chan) (:xt/id channel))]]
-       [:.mt-3 (if active
-                 [:span.font-bold (:chan/title chan)]
-                 [:a.link {:href (str "/community/" (:xt/id community)
-                                      "/channel/" (:xt/id chan))}
-                  (:chan/title chan)])])
+           :let [active (= (:xt/id chan) (:xt/id channel))
+                 href (str "/community/" (:xt/id community)
+                           "/channel/" (:xt/id chan))]]
+       [:.mt-4.flex.justify-between.leading-none
+        (if active
+          [:span.font-bold (:chan/title chan)]
+          [:a.link {:href href}
+           (:chan/title chan)])
+        (when (contains? roles :admin)
+          [:button.opacity-50.hover:opacity-100.flex.items-center
+           {:hx-delete  href
+            :hx-confirm (str "Are you sure you want to delete " (:chan/title chan) "?")
+            :hx-target  "closest div"
+            :hx-swap    "outerHTML"
+            :_          (when active
+                          (str "on htmx:afterRequest set window.location to '/community/" (:xt/id community) "'"))}
+           (icons/x :x {:class "w-3 h-3"})])])
 
      [:.grow]
      (when (contains? roles :admin)
