@@ -4,6 +4,7 @@
             [com.eelchat.app :as app]
             [com.eelchat.home :as home]
             [com.eelchat.schema :as schema]
+            [com.eelchat.subscriptions :as sub]
             [clojure.test :as test]
             [clojure.tools.logging :as log]
             [clojure.tools.namespace.repl :as tn-repl]
@@ -15,6 +16,7 @@
   [app/plugin
    (biff/authentication-plugin {})
    home/plugin
+   sub/plugin
    schema/plugin])
 
 (def routes [["" {:middleware [biff/wrap-site-defaults]}
