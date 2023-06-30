@@ -196,7 +196,7 @@
             :let        [[doc] args]
             :when       (and (contains? doc :sub/url)
                              (nil? (xt/entity db-before (:xt/id doc))))]
-      (biff/submit-job ctx :fetch-rss doc))))
+      (biff/submit-job ctx :fetch-rss (assoc doc :biff/priority 0)))))
 
 (defn on-tx
   [ctx tx]
