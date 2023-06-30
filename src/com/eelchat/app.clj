@@ -195,10 +195,8 @@
             :when       (= op ::xt/put)
             :let        [[doc] args]
             :when       (and (contains? doc :sub/url)
-                       (nil? (xt/entity db-before (:xt/id doc))))]
-      (future
-        (biff/submit-tx ctx
-                        (sub/sub-tx (sub/assoc-result ctx doc)))))))
+                             (nil? (xt/entity db-before (:xt/id doc))))]
+      (biff/submit-job ctx :fetch-rss doc))))
 
 (defn on-tx
   [ctx tx]

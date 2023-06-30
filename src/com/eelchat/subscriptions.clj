@@ -65,11 +65,16 @@
 
 (defn fetch-rss
   [{:keys [biff/db] :as ctx}]
+  (doseq [sub (subs-to-update db)]
+    (biff/submit-job ctx :fetch-rss sub)))
+
+(defn fetch-rss-consumer
+  [{:keys [biff/job] :as ctx}]
   (biff/submit-tx ctx
-                  (->> (subs-to-update db)
-                       (map #(assoc-result ctx %))
-                       (mapcat sub-tx))))
+                  (sub-tx (assoc-result ctx job))))
 
 (def plugin
   {:tasks [{:task #'fetch-rss
-            :schedule #(every-n-minutes 5)}]})
+            :schedule #(every-n-minutes 5)}]
+   :queues [{:id :fetch-rss
+             :consumer #'fetch-rss-consumer}]})
