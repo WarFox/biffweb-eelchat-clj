@@ -2,6 +2,7 @@
 (ns com.eelchat.app
   (:require [com.biffweb :as biff]
             [com.eelchat.middleware :as mid]
+            [com.eelchat.subscriptions :as sub]
             [com.eelchat.ui :as ui]
             [ring.adapter.jetty9 :as jetty]
             [rum.core :as rum]
@@ -187,6 +188,23 @@
             :when           (not= mem-id (:msg/mem doc))]
       (jetty/send! client html))))
 
+(defn on-new-subscription
+  [{:keys [biff.xtdb/node] :as ctx} tx]
+  (let [db-before (xt/db node {::xt/tx-id (dec (::xt/tx-id tx))})]
+    (doseq [[op & args] (::xt/tx-ops tx)
+            :when       (= op ::xt/put)
+            :let        [[doc] args]
+            :when       (and (contains? doc :sub/url)
+                       (nil? (xt/entity db-before (:xt/id doc))))]
+      (future
+        (biff/submit-tx ctx
+                        (sub/sub-tx (sub/assoc-result ctx doc)))))))
+
+(defn on-tx
+  [ctx tx]
+  (on-new-message ctx tx)
+  (on-new-subscription ctx tx))
+
 (defn wrap-community
   "Add community and user roles to ctx"
   [handler]
@@ -225,4 +243,4 @@
                    :post   new-message
                    :delete delete-channel}]
               ["/connect" {:get connect}]]]]
-   :on-tx on-new-message})
+   :on-tx on-tx})
