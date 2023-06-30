@@ -5,7 +5,8 @@
             [com.eelchat.ui :as ui]
             [ring.adapter.jetty9 :as jetty]
             [rum.core :as rum]
-            [xtdb.api :as xt]))
+            [xtdb.api :as xt]
+            [com.eelchat.command :as command]))
 
 (defn app
   "Make the app page"
@@ -99,7 +100,9 @@
 
 (defn message-view
   [{:msg/keys [mem text created-at]}]
-  (let [username (str "User " (subs (str mem) 0 4))]
+  (let [username (if (= :system mem)
+                   "💻 System 💻"
+                   (str "User " (subs (str mem) 0 4)))]
     [:div
      [:.text-sm
       [:span.font-bold username]
@@ -115,7 +118,8 @@
              :msg/created-at (java.util.Date.)
              :msg/text       (:text params)}]
     (biff/submit-tx (assoc ctx :biff.xtdb/retry false)
-                    [(assoc msg :db/doc-type :message)])
+                    (concat [(assoc msg :db/doc-type :message)]
+                            (command/command-tx ctx)))
     (message-view msg)))
 
 (defn channel-page

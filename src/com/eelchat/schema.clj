@@ -38,7 +38,7 @@
    :msg/id :uuid
    :message [:map {:closed true}
              [:xt/id :msg/id]
-             [:msg/mem :mem/id]
+             [:msg/mem [:or :mem/id [:enum :system]]]
              [:msg/text :string]
              [:msg/channel :chan/id]
              [:msg/created-at inst?]]})
